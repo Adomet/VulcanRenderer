@@ -1,0 +1,21 @@
+﻿  context.c
+  egl_context.c
+  init.c
+  input.c
+  monitor.c
+  osmesa_context.c
+  vulkan.c
+  wgl_context.c
+  win32_init.c
+  win32_joystick.c
+  win32_monitor.c
+  win32_thread.c
+  win32_time.c
+  win32_window.c
+  window.c
+  Generating Code...
+  main.cpp
+main.obj : error LNK2019: unresolved external symbol _vkCreateInstance@12 referenced in function _main
+main.obj : error LNK2019: unresolved external symbol _vkDestroyInstance@8 referenced in function _main
+C:\VulkanSDK\1.1.106.0\Lib\vulkan-1.lib : warning LNK4272: library machine type 'x64' conflicts with target machine type 'x86'
+D:\dev\VulkanRenderer\Debug\VulkanRenderer.exe : fatal error LNK1120: 2 unresolved externals
