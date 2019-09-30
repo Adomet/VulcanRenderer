@@ -35,7 +35,7 @@ VkPhysicalDevice pickPhysicalDevice(VkPhysicalDevice* physicalDevices, uint32_t 
 
 		if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
 		{
-			printf("Picking discreate GPU %s\n", props.deviceName);
+			printf("Picking discreate GPU %s \n", props.deviceName);
 			return physicalDevices[i];
 		}
 	}
@@ -43,7 +43,7 @@ VkPhysicalDevice pickPhysicalDevice(VkPhysicalDevice* physicalDevices, uint32_t 
 	{
 		VkPhysicalDeviceProperties props;
 		vkGetPhysicalDeviceProperties(physicalDevices[0], &props);
-		printf("Picking iGPU %s\n", props.deviceName);
+		printf("Picking iGPU %s \n", props.deviceName);
 		return physicalDevices[0];
 	}
 
@@ -95,6 +95,35 @@ VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice,uint3
 	return device;
 }
 
+VkSwapchainKHR createSwapchain(VkDevice device, VkSurfaceKHR surface, uint32_t familyIndex, uint32_t width, uint32_t height)
+{
+	VkSwapchainCreateInfoKHR createInfo = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
+	createInfo.surface = surface;
+	createInfo.minImageCount = 2;
+	createInfo.imageFormat = VK_FORMAT_R8G8B8A8_UNORM; // SHORTCUT: some devices only support BGRA
+	createInfo.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+	createInfo.imageExtent.width = width;
+	createInfo.imageExtent.height = height;
+	createInfo.imageArrayLayers = 1;
+	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	createInfo.queueFamilyIndexCount = 1;
+	createInfo.pQueueFamilyIndices = &familyIndex;
+	createInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+
+	VkSwapchainKHR swapchain = 0;
+	VK_CHECK(vkCreateSwapchainKHR(device, &createInfo, 0, &swapchain));
+
+	return swapchain;
+}
+VkSemaphore createSemaphore(VkDevice device)
+{
+
+	VkSemaphoreCreateInfo semaphoreCreateInfo = {VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_CREATE_INFO};
+	VkSemaphore semaphore = 0;
+	VK_CHECK(vkCreateSemaphore(device, &semaphoreCreateInfo, 0, &semaphore));
+
+	return semaphore;
+}
 
 
 int main()
@@ -170,32 +199,38 @@ int main()
 	VkSurfaceKHR surface = createSurface(instance, window);
 	assert(surface);
 
+		int windowWidth = 0, windowHeight = 0;
+	glfwGetWindowSize(window, &windowWidth, &windowHeight);
 
-	int windWidth = 0, windHeight = 0;
-	glfwGetWindowSize(window, &windWidth, &windHeight);
-	VkSwapchainCreateInfoKHR swapchainCreateInfo = {VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR};
-	swapchainCreateInfo.surface = surface;
-	swapchainCreateInfo.minImageCount = 2;
-	swapchainCreateInfo.imageFormat = VK_FORMAT_R8G8B8A8_UNORM;
-	swapchainCreateInfo.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-	swapchainCreateInfo.imageExtent.width = windWidth;
-	swapchainCreateInfo.imageExtent.height= windHeight;
-	swapchainCreateInfo.imageArrayLayers = 1;
-	swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-	swapchainCreateInfo.queueFamilyIndexCount = 1;
-	swapchainCreateInfo.pQueueFamilyIndices = &familyIndex;
-	swapchainCreateInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+	VkSwapchainKHR swapchain = createSwapchain(device,surface,familyIndex,windowWidth,windowHeight);
+	assert(swapchain);
 
+	VkSemaphore semaphore = createSemaphore(device);
+	assert(semaphore);
 
+	VkQueue queue = 0;
+	vkGetDeviceQueue(device, familyIndex, 0, &queue);
 
-
-	VkSwapchainKHR swapchain=0;
-	vkCreateSwapchainKHR(device, &swapchainCreateInfo, 0, &swapchain);
-
+	VkImage swapchainImages[16];
+	uint32_t swapchainImageCount = sizeof(swapchainImages) / sizeof(swapchainImages[0]);
+	VK_CHECK( vkGetSwapchainImagesKHR(device, swapchain,&swapchainImageCount,swapchainImages));
 
 	while (!glfwWindowShouldClose(window))
 	{
 		glfwPollEvents();
+
+		uint32_t ImageIndex = 0;
+		VK_CHECK(vkAcquireNextImageKHR(device,swapchain,0,semaphore,VK_NULL_HANDLE,&ImageIndex));
+
+		VkPresentInfoKHR presentInfo = { VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
+		presentInfo.swapchainCount = 1;
+		presentInfo.pSwapchains = &swapchain;
+		presentInfo.pImageIndices = &ImageIndex;
+
+
+		VK_CHECK(vkQueuePresentKHR(queue,&presentInfo));
+
+		VK_CHECK(vkDeviceWaitIdle(device));
 	}
 
 
@@ -206,4 +241,4 @@ int main()
 
 
 	return 0;
-}
+ }
