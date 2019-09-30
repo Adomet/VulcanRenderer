@@ -1,128 +1,98 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.h>
+#include <assert.h>
 #include <iostream>
 #include <vector>
 
-const int WIDTH = 800;
-const int HEIGHT = 600;
+
+#define VK_CHECK(call)\
+do{\
+ VkResult result_ =call;\
+ assert(result_ == VK_SUCCESS);\
+} while (0)
 
 
-class RogueVulkanRenderer {
+// standard way of call back
+static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
+	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+	VkDebugUtilsMessageTypeFlagsEXT messageType,
+	const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+	void* pUserData) {
 
-private: 
-	VkInstance instance;
-	GLFWwindow* window;
+	std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
 
-
-public:
-	void run() {
-
-		initWindow();
-		initVulkan();
-		mainLoop();
-		cleanup();
-	}
-
-private:
-	void initWindow() {
-
-		//nonsense
-		printf("Rogue Vulkan Renderer\n<------------------------------------------------>\n\n");
-		//
-
-		glfwInit();
-		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-		glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-	    window = glfwCreateWindow(WIDTH, HEIGHT, "Rogue Vulkan Renderer", nullptr, nullptr);
+	return VK_FALSE;
+}
 
 
-		uint32_t  extensionCount = 0;
-		vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
 
-		printf("%d extensions supported", extensionCount);
+int main()
+{
+	int rc = glfwInit();
+	assert(rc);
 
-	}
-	void initVulkan() {
-		createInstance();
-	}
+	VkApplicationInfo appInfo = { VK_STRUCTURE_TYPE_APPLICATION_INFO };
+	appInfo.apiVersion = VK_VERSION_1_1;
 
-	void mainLoop() {
+	VkInstanceCreateInfo createInfo = { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO };
+	createInfo.pApplicationInfo = &appInfo;
 
-		while (!glfwWindowShouldClose(window))
-		{
-			glfwPollEvents();
-		}
-	}
 
-	void cleanup() {
+	// Validation Layers Code start Here
 
-		vkDestroyInstance(instance, nullptr);
-		glfwDestroyWindow(window);
-		glfwTerminate();
-
-	}
-
-	void createInstance()
+#ifdef _DEBUG
+	const char* debugLayer[] =
 	{
-		VkApplicationInfo appInfo = {};
-		appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-		appInfo.pApplicationName = "Rogue Vulkan Renderer";
-		appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-		appInfo.pEngineName = "Rogue";
-		appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-		appInfo.applicationVersion = VK_VERSION_1_1;
+		"VK_LAYER_LUNARG_standard_validation"
+	};
+
+	createInfo.ppEnabledLayerNames = debugLayer;
+	createInfo.enabledLayerCount = sizeof(debugLayer) / sizeof(debugLayer[0]);
+#endif // _DEBUG
 
 
-		VkInstanceCreateInfo createInfo = {};
-		createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-		createInfo.pApplicationInfo = &appInfo;
+	const char* extensions[] =
+	{
+		VK_KHR_SURFACE_EXTENSION_NAME,
+		VK_EXT_DEBUG_UTILS_EXTENSION_NAME
+	};
+
+	createInfo.ppEnabledExtensionNames = extensions;
+	createInfo.enabledExtensionCount = sizeof(extensions) / sizeof(extensions[0]);
 
 
-		uint32_t glfwExtensionCount = 0;
-		const char** glfwExtensions;
-
-		glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-
-		createInfo.enabledExtensionCount = glfwExtensionCount;
-		createInfo.ppEnabledExtensionNames = glfwExtensions;
-
-		createInfo.enabledLayerCount = 0;
-
-		VkResult result = vkCreateInstance(&createInfo, nullptr, &instance);
-
-		if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create instance!");
-		}
-
-		uint32_t extensionCount = 0;
-		vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-
-		std::vector<VkExtensionProperties> extensions(extensionCount);
-
-		vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
-
-		std::cout << "available extensions:" << std::endl;
-
-		for (const auto& extension : extensions) {
-			std::cout << "\t" << extension.extensionName << std::endl;
-		}
+	VkDebugUtilsMessengerEXT debugMessenger = 0;
+	VkDebugUtilsMessengerCreateInfoEXT debugcreateInfo = {};
+	debugcreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+	debugcreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+	debugcreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+	debugcreateInfo.pfnUserCallback = debugCallback;
 
 
+	createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)& debugcreateInfo;
+
+
+	VkInstance instance = 0;
+	VK_CHECK(vkCreateInstance(&createInfo, 0, &instance));
+
+
+	//Validation Layer Code ends herer (which the guy not even tried to write debug messenger thing)
+
+	GLFWwindow* window = glfwCreateWindow(1024,768,"Rogue Vulcan",0,0);
+	assert(window);
+
+	while (!glfwWindowShouldClose(window))
+	{
+		glfwPollEvents();
 	}
 
-};
 
-int main() {
-	RogueVulkanRenderer app;
+	vkDestroyInstance(instance, 0);
+	glfwDestroyWindow(window);
+	glfwTerminate();
+	
 
-	try {
-		app.run();
-	}
-	catch (const std::exception& e) {
-		std::cerr << e.what() << std::endl;
-		return EXIT_FAILURE;
-	}
 
-	return EXIT_SUCCESS;
+	return 0;
 }
