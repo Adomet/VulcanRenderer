@@ -7,6 +7,17 @@
 #include <vector>
 
 
+#include <iostream>
+#include <stdexcept>
+#include <algorithm>
+#include <vector>
+#include <cstring>
+#include <cstdlib>
+#include <cstdint>
+#include <optional>
+#include <set>
+
+
 #define VK_CHECK(call)\
 do{\
  VkResult result_ =call;\
@@ -28,10 +39,17 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 
 VkPhysicalDevice pickPhysicalDevice(VkPhysicalDevice* physicalDevices, uint32_t physicalDeviceCount)
 {
+	printf("Devices:\n");
+
 	for (uint32_t i = 0; i < physicalDeviceCount; i++)
 	{
 		VkPhysicalDeviceProperties props;
+
+		
+
 		vkGetPhysicalDeviceProperties(physicalDevices[i], &props);
+
+		printf("%s\n",props.deviceName);
 
 		if (props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
 		{
@@ -95,26 +113,36 @@ VkDevice createDevice(VkInstance instance, VkPhysicalDevice physicalDevice,uint3
 	return device;
 }
 
+
+
 VkSwapchainKHR createSwapchain(VkDevice device, VkSurfaceKHR surface, uint32_t familyIndex, uint32_t width, uint32_t height)
 {
 	VkSwapchainCreateInfoKHR createInfo = { VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR };
 	createInfo.surface = surface;
 	createInfo.minImageCount = 2;
-	createInfo.imageFormat = VK_FORMAT_R8G8B8A8_UNORM; // SHORTCUT: some devices only support BGRA
-	createInfo.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+	createInfo.imageFormat = VK_FORMAT_B8G8R8A8_UNORM; // SHORTCUT: some devices only support BGRA
+	createInfo.imageColorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR; // VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 	createInfo.imageExtent.width = width;
 	createInfo.imageExtent.height = height;
 	createInfo.imageArrayLayers = 1;
 	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-	createInfo.queueFamilyIndexCount = 1;
+	createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE; 
+	createInfo.queueFamilyIndexCount = 0;
 	createInfo.pQueueFamilyIndices = &familyIndex;
-	createInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+	createInfo.presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
+	createInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+	createInfo.oldSwapchain = VK_NULL_HANDLE;
+	createInfo.compositeAlpha=VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	createInfo.clipped= VK_TRUE;
+
 
 	VkSwapchainKHR swapchain = 0;
-	VK_CHECK(vkCreateSwapchainKHR(device, &createInfo, 0, &swapchain));
+	vkCreateSwapchainKHR(device, &createInfo, 0, &swapchain);
 
 	return swapchain;
 }
+
+
 VkSemaphore createSemaphore(VkDevice device)
 {
 
@@ -141,6 +169,7 @@ int main()
 	{
 		VK_KHR_SURFACE_EXTENSION_NAME,
 		VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
+		VK_KHR_SURFACE_EXTENSION_NAME,
 		VK_KHR_WIN32_SURFACE_EXTENSION_NAME,//Window spesific
 	};
 
@@ -199,11 +228,20 @@ int main()
 	VkSurfaceKHR surface = createSurface(instance, window);
 	assert(surface);
 
+	VkBool32 supported = false;
+	vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, familyIndex, surface, &supported);
+	assert(supported);
+
+
 		int windowWidth = 0, windowHeight = 0;
 	glfwGetWindowSize(window, &windowWidth, &windowHeight);
 
 	VkSwapchainKHR swapchain = createSwapchain(device,surface,familyIndex,windowWidth,windowHeight);
 	assert(swapchain);
+
+	//
+
+
 
 	VkSemaphore semaphore = createSemaphore(device);
 	assert(semaphore);
