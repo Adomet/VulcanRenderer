@@ -1,21 +1,9 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
-#include <vulkan/vulkan.h>
 #include <assert.h>
 #include <iostream>
 #include <vector>
-
-
-#include <iostream>
-#include <stdexcept>
-#include <algorithm>
-#include <vector>
-#include <cstring>
-#include <cstdlib>
-#include <cstdint>
-#include <optional>
-#include <set>
 
 
 #define VK_CHECK(call)\
@@ -159,6 +147,11 @@ int main()
 	int rc = glfwInit();
 	assert(rc);
 
+	if (glfwVulkanSupported())
+	{
+		printf("supported glfw vulkan");
+	}
+
 	VkApplicationInfo appInfo = { VK_STRUCTURE_TYPE_APPLICATION_INFO };
 	appInfo.apiVersion = VK_API_VERSION_1_1;
 
@@ -221,27 +214,30 @@ int main()
 	VkDevice device = createDevice(instance, physicalDevice,&familyIndex);
 
 
-	GLFWwindow* window = glfwCreateWindow(1024,768,"Rogue Vulcan",0,0);
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+	GLFWwindow* window = glfwCreateWindow(1024, 768, "Rogue Vulcan", 0, 0);
 	assert(window);
 
+	VkSurfaceKHR surface;
+	VkResult err = glfwCreateWindowSurface(instance, window, NULL, &surface);
+	if (err)
+	{
+		printf("surface creation failed");
+	}
 
-	VkSurfaceKHR surface = createSurface(instance, window);
-	assert(surface);
 
 	VkBool32 supported = false;
 	vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, familyIndex, surface, &supported);
 	assert(supported);
 
 
-		int windowWidth = 0, windowHeight = 0;
+	int windowWidth = 0, windowHeight = 0;
 	glfwGetWindowSize(window, &windowWidth, &windowHeight);
 
 	VkSwapchainKHR swapchain = createSwapchain(device,surface,familyIndex,windowWidth,windowHeight);
 	assert(swapchain);
 
-	//
-
-
+	
 
 	VkSemaphore semaphore = createSemaphore(device);
 	assert(semaphore);
